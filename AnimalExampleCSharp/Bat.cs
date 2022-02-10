@@ -16,9 +16,21 @@ namespace AnimalExampleCSharp
 
 
         /////////////////////Constructors//////////////////////////////
-        ///
+        public Bat(String Name, int Age) : base (Name,Age)
+        {
+            Console.WriteLine (Name);
+            Console.WriteLine (Age);
+        }
 
+        public Bat(int Age) : this("ManBat",Age)
+        {
 
+        }
+
+        public Bat():this(0)
+        {
+
+        }
 
 
 

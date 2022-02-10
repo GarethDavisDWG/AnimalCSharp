@@ -14,10 +14,10 @@ namespace AnimalExampleCSharp
         public String Name { get; private set; }
 
         //////////////////////////////////////////Constructors//////////////////////////////////////////
-        public Animal()
-            :base()
+        public Animal(string Name, int Age)
         {
-            Name = "Riccardo";
+            this.Name = Name;
+            this.Age = Age;
         }
 
 

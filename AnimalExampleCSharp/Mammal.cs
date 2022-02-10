@@ -9,13 +9,21 @@ namespace AnimalExampleCSharp
     public abstract class Mammal : Animal
     {
         ///////////////////////////Attributes///////////////////////////////
-        
+
 
 
 
 
         /////////////////////////////Constructors/////////////////////////
+        public Mammal() : base("Default",1)
+        {
 
+        }
+
+        public Mammal(String Name, int Age) : base(Name,Age)
+        {
+
+        }
 
 
 
