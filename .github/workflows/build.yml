@@ -1,59 +1,53 @@
-name: CI Checks
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-    # Allow manual trigger for debugging the workflow.
-env:
-  SONAR_WRAPPER_URL: https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
-  SONAR_SCANNER_URL: https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.4.0.2170-windows.zip
-jobs:
-  CIChecks:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout branch
-      uses: actions/checkout@master
-      with:
-        # Disabling shallow clone is required to report the correct blame information.
-        fetch-depth: 0
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: Environment
-      shell: bash
-      run: |
-        mkdir -p build
-        org="$(cut -d/ -f1 <<< "$GITHUB_REPOSITORY")"
-        repo="$(cut -d/ -f2 <<< "$GITHUB_REPOSITORY")"
-        echo "SONAR_ORGANIZATION=${org}" >> "$GITHUB_ENV"
-        echo "SONAR_PROJECT_KEY=${org}_${repo}" >> "$GITHUB_ENV"
-    - name: Install Sonar Scanner
-      run: |
-        Invoke-WebRequest -Uri "${{ env.SONAR_WRAPPER_URL }}" -OutFile build/build-wrapper.zip
-        Invoke-WebRequest -Uri "${{ env.SONAR_SCANNER_URL }}" -OutFile build/sonar-scanner.zip
-        Expand-Archive -LiteralPath build/build-wrapper.zip -DestinationPath build
-        Expand-Archive -LiteralPath build/sonar-scanner.zip -DestinationPath build
-    - name: Build with Sonar Wrapper
-      shell: cmd
-      run: |
-        SET PATH=%PATH%;%cd%\build\build-wrapper-win-x86
-        build-wrapper-win-x86-64 --out-dir build\bw_output build-all.bat
-    - name: Prepare Sonar Scanner
-      shell: bash
-      run: |
-        set -x
-        cd build
-        ls -la bw_output
-        mv sonar-scanner-*-windows sonar-scanner
-    - name: Sonar Scanner
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      shell: cmd
-      run: |
-        SET PATH=%PATH%;%cd%\build\sonar-scanner\bin
-        ECHO PATH=%PATH%
-        ECHO DIR %cd%\build\bw_output\
-        DIR %cd%\build\bw_output\
-        sonar-scanner.bat -Dsonar.cfamily.build-wrapper-output=%cd%\build\bw_output
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  buildPlatform: 'any cpu'
+
+steps:
+- task: NuGetToolInstaller@0
+  displayName: 'Use NuGet 4.4.1'
+  inputs:
+    versionSpec: 4.4.1
+
+- task: NuGetCommand@2
+  displayName: 'NuGet restore'
+  inputs:
+    restoreSolution: 'SomeConsoleApplication.sln'
+
+- task: SonarCloudPrepare@1
+  displayName: 'Prepare analysis configuration'
+  inputs:
+    SonarCloud: 'SC'
+    organization: 'myorga'
+    scannerMode: 'MSBuild'
+    projectKey: 'dotnet-framework-on-azdo'
+    projectName: 'Sample .NET Framework project with Azure DevOps'
+
+
+- task: VSBuild@1
+  displayName: 'Build solution **\*.sln'
+  inputs:
+    solution: 'SomeConsoleApplication.sln'
+    platform: '$(BuildPlatform)'
+    configuration: '$(BuildConfiguration)'
+
+- task: VSTest@2
+  displayName: 'VsTest - testAssemblies'
+  inputs:
+    testAssemblyVer2: |
+     **\$(BuildConfiguration)\*Test*.dll
+     !**\obj\**
+    codeCoverageEnabled: true
+    platform: '$(BuildPlatform)'
+    configuration: '$(BuildConfiguration)'
+
+- task: SonarCloudAnalyze@1
+  displayName: 'Run SonarCloud analysis'
+
+- task: SonarCloudPublish@1
+  displayName: 'Publish results on build summary'
